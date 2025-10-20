@@ -1,47 +1,52 @@
-from dotenv import load_dotenv
-from json import loads
+from dotenv  import load_dotenv
+from json    import loads
 from pathlib import Path
-from os import getenv
+from os      import getenv
 
 class Environment:
 
     __default_env_path = '.env'
 
-    __default_env_bone = {
-        'HTTP_DIFF_AVAILABLE_REQUEST_NAMES': 'DEFAULT',
-
-        # required string
-        'HTTP_DIFF_DEFAULT_REQUEST_URL': 'https://example.com/path',
-
-        # post (default), get, put, patch, delete
-        'HTTP_DIFF_DEFAULT_REQUEST_METHOD': 'post',
-
-        # application/json (default), application/x-www-form-urlencoded
-        'HTTP_DIFF_DEFAULT_REQUEST_CONTENT_TYPE': 'application/json',
-
-        # optional string
-        'HTTP_DIFF_DEFAULT_REQUEST_HEADERS': '{"User-Agent": "HTTP-Diff"}',
-
-        # optional string
-        'HTTP_DIFF_DEFAULT_REQUEST_BODY': '{"message": "Hello from HttpDiff"}',
-
-        # required string
-        'HTTP_DIFF_DEFAULT_RULE_SCHEMA': '{"status": {"equal": 200}}',
-
-        # or (default), and
-        'HTTP_DIFF_DEFAULT_RULE_LOGIC': 'or',
-
-        # none (default), mail, request
-        'HTTP_DIFF_DEFAULT_TRIGGER_ACTION': 'none',
-    }
+    __default_env_requirement = [
+        'HTTP_DIFF_@>@_REQUEST_URL',
+        'HTTP_DIFF_@>@_REQUEST_METHOD',
+        'HTTP_DIFF_@>@_REQUEST_TIMEOUT',
+        'HTTP_DIFF_@>@_REQUEST_CONTENT_TYPE',
+        'HTTP_DIFF_@>@_REQUEST_HEADERS',
+        'HTTP_DIFF_@>@_REQUEST_BODY',
+        'HTTP_DIFF_@>@_RULE_SCHEMA',
+        'HTTP_DIFF_@>@_RULE_LOGIC',
+        'HTTP_DIFF_@>@_TRIGGER_ACTION',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_USERNAME',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_PASSWORD',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_RECEIVERS',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_SUBJECT',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_BODY',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_SERVER',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_PORT',
+        'HTTP_DIFF_@>@_TRIGGER_EMAIL_IS_HTML',
+    ]
 
     @staticmethod
     def __load_env():
         env_file = Path(Environment.__default_env_path)
         if not env_file.exists():
-            with env_file.open("w", encoding="utf-8") as f:
-                for key, value in Environment.__default_env_bone.items():
-                    f.write(f"{key}={value}\n")
+            request_names = getenv('HTTP_DIFF_AVAILABLE_REQUEST_NAMES')
+            if request_names is None:
+                raise KeyError(f'Missing HTTP_DIFF_AVAILABLE_REQUEST_NAMES key in env')
+            result_directory = getenv('HTTP_DIFF_RESULT_DIRECTORY')
+            if result_directory is None:
+                result_directory = 'history'
+            env_dict: dict[str, str] = {
+                'HTTP_DIFF_AVAILABLE_REQUEST_NAMES': request_names,
+                'HTTP_DIFF_RESULT_DIRECTORY':        result_directory,
+            }
+            request_names = env_dict['HTTP_DIFF_AVAILABLE_REQUEST_NAMES'].split(',')
+            for name in request_names:
+                for requirement in Environment.__default_env_requirement:
+                    key = requirement.replace('@>@', name.upper())
+                    env_dict[key] = getenv(key)
+            return env_dict
         ok = load_dotenv(dotenv_path=env_file)
         if not ok:
             raise Exception("Can't load env file")
@@ -77,7 +82,7 @@ class Environment:
 
     @staticmethod
     def __get_env(env_dict: dict[str, str], key: str, fallback = None, options: list[str] = []):
-        if key not in env_dict:
+        if key not in env_dict or env_dict[key] is None:
             return fallback
         value = env_dict[key]
         if len(options) > 0:
@@ -95,8 +100,10 @@ class Environment:
                 env = f'HTTP_DIFF_{name}'
                 request_builder = {
                     'name':         name,
+                    'result_dir':   Environment.__get_env(env_dict, 'HTTP_DIFF_RESULT_DIRECTORY', 'history'),
                     'url':          Environment.__get_env(env_dict, f'{env}_REQUEST_URL'),
-                    'method':       Environment.__get_env(env_dict, f'{env}_REQUEST_METHOD', 'post', ['post','get','put','patch','delete']).lower(),
+                    'method':       Environment.__get_env(env_dict, f'{env}_REQUEST_METHOD', 'post', ['post', 'get', 'put', 'patch', 'delete']).lower(),
+                    'timeout':      int(Environment.__get_env(env_dict, f'{env}_REQUEST_TIMEOUT', 5)),
                     'content_type': Environment.__get_env(env_dict, f'{env}_REQUEST_CONTENT_TYPE', 'application/json', ['application/json', 'application/x-www-form-urlencoded']).lower(),
                     'headers':      loads(Environment.__get_env(env_dict, f'{env}_REQUEST_HEADERS', '{}')),
                     'body':         loads(Environment.__get_env(env_dict, f'{env}_REQUEST_BODY', '{}')),
@@ -105,8 +112,17 @@ class Environment:
                         'logic':  Environment.__get_env(env_dict, f'{env}_RULE_LOGIC', 'or', ['or','and']).lower(),
                     },
                     'trigger': {
-                        'action': Environment.__get_env(env_dict, f'{env}_TRIGGER_ACTION', 'none', ['none','mail','request']).lower(),
-                        'mail': {},
+                        'action': Environment.__get_env(env_dict, f'{env}_TRIGGER_ACTION', 'none', ['none', 'email', 'request']).lower(),
+                        'email': {
+                            'username':  Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_USERNAME'),
+                            'password':  Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_PASSWORD'),
+                            'receivers': Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_RECEIVERS', '').split(','),
+                            'subject':   Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_SUBJECT', 'HttpDiff alerting'),
+                            'body':      Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_BODY', ''),
+                            'server':    Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_SERVER', 'smtp.gmail.com'),
+                            'port':      Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_PORT', 587),
+                            'is_html':   Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_IS_HTML', 'false', ['true', 'false']),
+                        },
                         'request': {},
                     },
                 }

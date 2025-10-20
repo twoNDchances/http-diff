@@ -1,19 +1,54 @@
-from asyncio import gather, run
+from asyncio     import gather, run
 from environment import Environment
-from request import Request
+from logging     import basicConfig, DEBUG
+from request     import Request
+from rule        import Rule
+from trigger     import Trigger, Email as EmailAction, Request as RequestAction
+
+basicConfig(
+    level=DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
 async def main():
-    requests = Environment.analyze_env()
+    configs = Environment.analyze_env()
 
     tasks = []
-    for request in requests:
-        request = Request(request['name'], request['url'], request['method'], request['content_type'], request['headers'], request['body'])
-        tasks.append(request.perform())
+    for config in configs:
+        request = Request(
+            config['name'],
+            config['url'],
+            config['method'],
+            config['timeout'],
+            config['content_type'],
+            config['headers'],
+            config['body'],
+        )
+        trigger = Trigger(
+            config['trigger']['action'],
+            EmailAction(
+                config['trigger']['email']['username'],
+                config['trigger']['email']['password'],
+                config['trigger']['email']['receivers'],
+                config['trigger']['email']['subject'],
+                config['trigger']['email']['body'],
+                config['trigger']['email']['server'],
+                config['trigger']['email']['port'],
+                config['trigger']['email']['is_html'],
+            ),
+            RequestAction(),
+        )
+        rule = Rule(
+            config['rule']['schema'],
+            config['rule']['logic'],
+            f'{config['result_dir']}/{config['name']}.json',
+            request,
+            trigger,
+        )
+        tasks.append(rule.perform())
 
-    results = await gather(*tasks)
-
-    for i, res in enumerate(results):
-        print(f"Response {i}: {res['headers'], res['body']}")
+    await gather(*tasks)
 
 if __name__ == '__main__':
     run(main())

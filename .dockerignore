@@ -1,0 +1,8 @@
+__pycache__
+*/
+history
+.env
+.env.example
+.gitignore
+kubernetes-manifest.yaml
+README.md
