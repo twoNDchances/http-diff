@@ -35,9 +35,13 @@ async def main():
                 config['trigger']['email']['body'],
                 config['trigger']['email']['server'],
                 config['trigger']['email']['port'],
-                config['trigger']['email']['is_html'],
             ),
-            RequestAction(),
+            RequestAction(
+                config['trigger']['request']['url'],
+                config['trigger']['request']['method'],
+                config['trigger']['request']['headers'],
+                config['trigger']['request']['body'],
+            ),
         )
         rule = Rule(
             config['rule']['schema'],

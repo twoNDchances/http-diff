@@ -1,0 +1,31 @@
+services:
+  httpdiff:
+    container_name: httpdiff
+    build: .
+    networks:
+      - httpdiff_network
+    volumes:
+      - httpdiff_storage:/http-diff/history
+    environment:
+      - HTTP_DIFF_DEFAULT_REQUEST_URL=http://webhook
+    depends_on:
+      webhook:
+        condition: service_healthy
+
+  webhook:
+    container_name: webhook
+    image: nginx:latest
+    networks:
+      - httpdiff_network
+    healthcheck:
+      test: ["curl", "localhost"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+
+volumes:
+  httpdiff_storage:
+
+networks:
+  httpdiff_network:
+    driver: bridge

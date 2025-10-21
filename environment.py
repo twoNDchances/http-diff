@@ -17,6 +17,7 @@ class Environment:
         'HTTP_DIFF_@>@_RULE_SCHEMA',
         'HTTP_DIFF_@>@_RULE_LOGIC',
         'HTTP_DIFF_@>@_TRIGGER_ACTION',
+
         'HTTP_DIFF_@>@_TRIGGER_EMAIL_USERNAME',
         'HTTP_DIFF_@>@_TRIGGER_EMAIL_PASSWORD',
         'HTTP_DIFF_@>@_TRIGGER_EMAIL_RECEIVERS',
@@ -24,7 +25,11 @@ class Environment:
         'HTTP_DIFF_@>@_TRIGGER_EMAIL_BODY',
         'HTTP_DIFF_@>@_TRIGGER_EMAIL_SERVER',
         'HTTP_DIFF_@>@_TRIGGER_EMAIL_PORT',
-        'HTTP_DIFF_@>@_TRIGGER_EMAIL_IS_HTML',
+
+        'HTTP_DIFF_@>@_TRIGGER_REQUEST_URL',
+        'HTTP_DIFF_@>@_TRIGGER_REQUEST_METHOD',
+        'HTTP_DIFF_@>@_TRIGGER_REQUEST_HEADERS',
+        'HTTP_DIFF_@>@_TRIGGER_REQUEST_BODY',
     ]
 
     @staticmethod
@@ -105,7 +110,7 @@ class Environment:
                     'method':       Environment.__get_env(env_dict, f'{env}_REQUEST_METHOD', 'post', ['post', 'get', 'put', 'patch', 'delete']).lower(),
                     'timeout':      int(Environment.__get_env(env_dict, f'{env}_REQUEST_TIMEOUT', 5)),
                     'content_type': Environment.__get_env(env_dict, f'{env}_REQUEST_CONTENT_TYPE', 'application/json', ['application/json', 'application/x-www-form-urlencoded']).lower(),
-                    'headers':      loads(Environment.__get_env(env_dict, f'{env}_REQUEST_HEADERS', '{}')),
+                    'headers':      loads(Environment.__get_env(env_dict, f'{env}_REQUEST_HEADERS', '{"User-Agent": "HttpDiff"}')),
                     'body':         loads(Environment.__get_env(env_dict, f'{env}_REQUEST_BODY', '{}')),
                     'rule': {
                         'schema': loads(Environment.__get_env(env_dict, f'{env}_RULE_SCHEMA')),
@@ -121,9 +126,13 @@ class Environment:
                             'body':      Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_BODY', ''),
                             'server':    Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_SERVER', 'smtp.gmail.com'),
                             'port':      Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_PORT', 587),
-                            'is_html':   Environment.__get_env(env_dict, f'{env}_TRIGGER_EMAIL_IS_HTML', 'false', ['true', 'false']),
                         },
-                        'request': {},
+                        'request': {
+                            'url':     Environment.__get_env(env_dict, f'{env}_TRIGGER_REQUEST_URL'),
+                            'method':  Environment.__get_env(env_dict, f'{env}_TRIGGER_REQUEST_METHOD', 'post', ['post', 'get', 'put', 'patch', 'delete']),
+                            'headers': loads(Environment.__get_env(env_dict, f'{env}_TRIGGER_REQUEST_HEADERS', '{"User-Agent": "HttpDiff"}')),
+                            'body':    loads(Environment.__get_env(env_dict, f'{env}_TRIGGER_REQUEST_BODY', '{}')),
+                        },
                     },
                 }
             requests.append(request_builder)
