@@ -36,8 +36,7 @@ class Rule:
     def __orchestrate(self, result: dict):
         condition = []
         if 'status' in self.schema:
-            status_result = self.__information['rule.status.final'] = self.__scan_status(self.schema['status'], result)
-            condition.append(status_result)
+            condition.append(self.__scan_status(self.schema['status'], result))
         if 'headers' in self.schema:
             headers_result = self.__information['rule.headers.final'] = self.__scan_key_value(self.schema['headers'], result, 'headers')
             condition.append(headers_result)
