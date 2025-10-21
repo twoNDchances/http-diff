@@ -18,7 +18,7 @@ services:
     networks:
       - httpdiff_network
     healthcheck:
-      test: ["curl", "localhost"]
+      test: ["CMD", "curl", "localhost"]
       interval: 5s
       timeout: 2s
       retries: 20
