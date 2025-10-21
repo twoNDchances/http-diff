@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: http-diff
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: http-diff-pv
+  namespace: http-diff
+spec:
+  capacity:
+    storage: 3Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/http-diff-storage
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: http-diff-pvc
+  namespace: http-diff
+spec:
+  resources:
+    requests:
+      storage: 3Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: http-diff-cm
+  namespace: http-diff
+data:
+  HTTP_DIFF_AVAILABLE_REQUEST_NAMES: HISTORY_MATCH
+  HTTP_DIFF_RESULT_DIRECTORY: history
+  HTTP_DIFF_HISTORY_MATCH_REQUEST_URL: co cai cc
+  HTTP_DIFF_HISTORY_MATCH_REQUEST_METHOD: get
+  HTTP_DIFF_HISTORY_MATCH_REQUEST_TIMEOUT: "10"
+  HTTP_DIFF_HISTORY_MATCH_REQUEST_CONTENT_TYPE: application/json
+  HTTP_DIFF_HISTORY_MATCH_REQUEST_HEADERS: |
+    {
+      "User-Agent": "HttpDiff/MainCore"
+    }
+  HTTP_DIFF_HISTORY_MATCH_REQUEST_BODY: |
+    {}
+  HTTP_DIFF_HISTORY_MATCH_RULE_SCHEMA: |
+    {
+      "status": {
+        "source": "[previous_status]",
+        "operator": "different",
+        "destination": "[current_status]"
+      },
+      "body": {
+        "logic": "or",
+        "conditions": [
+          {
+            "source": "[previous_body]",
+            "operator": "different",
+            "destination": "[current_body]"
+          }
+        ]
+      }
+    }
+  HTTP_DIFF_HISTORY_MATCH_RULE_LOGIC: or
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_ACTION: email
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_SUBJECT: "[HttpDiff] Alerting from $request.name$"
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_BODY: |
+    Your rule is firing because it matches when fetching $request.url$ using $request.method$ method.
+    Detail:
+      - Original:
+        - Status: $rule.status.source$ $rule.status.operator$ $rule.status.destination$
+        - Body: $rule.body.0.source$ $rule.body.0.operator$ $rule.body.0.destination$
+      - Reality:
+        - Status: $rule.status.source.value$ $rule.status.operator.value$ $rule.status.destination.value$
+        - Body: $rule.body.0.source.value$ $rule.body.0.operator.value$ $rule.body.0.destination.value$
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_SERVER: smtp.gmail.com
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_PORT: "587"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: http-diff-secret
+  namespace: http-diff
+type: Opaque
+data:
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_USERNAME: co cai cc
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_PASSWORD: co cai cc
+  HTTP_DIFF_HISTORY_MATCH_TRIGGER_EMAIL_RECEIVERS: co cai cc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: http-diff-cj
+  namespace: http-diff
+spec:
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: http-diff
+              image: secondchances/httpdiff:latest
+              envFrom:
+                - configMapRef:
+                    name: http-diff-cm
+                - secretRef:
+                    name: http-diff-secret
+              volumeMounts:
+                - mountPath: /http-diff/history
+                  name: http-diff-history
+          restartPolicy: Never
+          volumes:
+            - name: http-diff-history
+              persistentVolumeClaim:
+                claimName: http-diff-pvc
